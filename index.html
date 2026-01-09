@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: sans-serif; padding: 20px; text-align: center; }
+      select, button { padding: 10px; font-size: 16px; margin: 10px; }
+      button { background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+      button:disabled { background-color: #ccc; }
+      #status { margin-top: 20px; color: #333; }
+    </style>
+  </head>
+  <body>
+    <h2>Generate Login Token</h2>
+    
+    <label for="userSelect">Select User:</label><br>
+    <select id="userSelect">
+      <option value="" disabled selected>Loading users...</option>
+    </select>
+    <br>
+    
+    <button id="genBtn" onclick="generateToken()" disabled>Generate Token</button>
+    
+    <div id="status"></div>
+
+    <script>
+      window.onload = function() {
+        google.script.run.withSuccessHandler(populateUsers).getUsersList();
+      };
+
+      function populateUsers(users) {
+        const select = document.getElementById("userSelect");
+        select.innerHTML = '<option value="" disabled selected>Select a username</option>';
+        users.forEach(user => {
+          const option = document.createElement("option");
+          option.value = user;
+          option.text = user;
+          select.add(option);
+        });
+        document.getElementById("genBtn").disabled = false;
+      }
+
+      function generateToken() {
+        const select = document.getElementById("userSelect");
+        const username = select.value;
+        
+        if (!username) {
+          alert("Please select a user first.");
+          return;
+        }
+
+        const btn = document.getElementById("genBtn");
+        const status = document.getElementById("status");
+        
+        btn.disabled = true;
+        btn.innerText = "Processing...";
+        status.innerText = "Generating token...";
+
+        // 直接呼叫後端，不帶 IP
+        google.script.run
+          .withSuccessHandler(() => {
+            status.innerText = `Token generated for ${username}! Check Discord.`;
+            btn.innerText = "Generate Token";
+            btn.disabled = false;
+          })
+          .withFailureHandler((err) => {
+            status.innerText = "Error: " + err.message;
+            btn.innerText = "Generate Token";
+            btn.disabled = false;
+          })
+          .handleGenerateToken(username);
+      }
+    </script>
+  </body>
+</html>
