@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "deploy": "./deploy.sh"
+  },
   "devDependencies": {
     "@types/google-apps-script": "^2.0.8"
   }
