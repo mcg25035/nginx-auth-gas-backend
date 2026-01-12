@@ -2,7 +2,7 @@
 // Verification and Token Functions
 // ----------------------------------------------------
 
-function verifyToken_(inputToken) {
+function verifyToken_(inputToken, expectedRole) {
   if (!inputToken) return { pass: false, reason: "No token provided" };
 
   const sheet = getSheet_();
@@ -17,23 +17,41 @@ function verifyToken_(inputToken) {
 
     if (String(dbToken) === String(inputToken)) {
       const diff = nowTime - dbTime;
+      let isRenewed = false;
 
       // Case 1: Over 7 minutes -> Really expired
-      if (diff > SEVEN_MINUTES) {
+      if (diff > TWO_HOURS) {
         return { pass: false, reason: "Token expired" };
       }
 
       // Case 2: Between 5-7 minutes -> Renew
-      if (diff > FIVE_MINUTES) {
+      if (diff > ONE_HOURS) {
         // Update the time column (Column D / Index 4) to now
         // sheet row index = i + 1 (because data is a 0-indexed array)
         sheet.getRange(i + 1, 4).setValue(now);
-        
-        // Treated as valid after renewal, logging or notification can be added here
+        isRenewed = true;
       }
 
       // Case 3: Within 5 minutes (or just renewed) -> Pass
-      return { pass: true };
+      if (expectedRole) {
+        const userRoles = String(data[i][4] || ""); // Column E
+        const userRolesArray = userRoles.split(",");
+        const requiredRolesArray = expectedRole.split(",");
+        
+        // Check if user has ANY of the required roles
+        const hasRole = requiredRolesArray.some(req => userRolesArray.includes(req));
+        
+        if (!hasRole) {
+          return {
+            pass: false,
+            reason: `User verification passed but missing any of required roles: ${expectedRole}`,
+            username: data[i][1], // Return username (Column B)
+            userId: data[i][0]    // Return userId (Column A)
+          };
+        }
+      }
+      // Return username (Column B -> index 1)
+      return { pass: true, username: data[i][1], userId: data[i][0], renewed: isRenewed };
     }
   }
   return { pass: false, reason: "Invalid token" };
@@ -62,10 +80,22 @@ function handleGenerateToken(username) {
   sheet.getRange(rowIndex, 3).setValue(token);
   sheet.getRange(rowIndex, 4).setValue(timestamp);
 
-  // Send Discord Webhook (IP removed)
-  const discordMessage = `<@!${userId}> 你的Token是 ||${token}|| ， 請於5分鐘內登入`;
-  
-  sendDiscordAlert_(discordMessage);
+  // Send Token via API
+  try {
+    const payload = {
+      "token": token,
+      "user-id": userId
+    };
+    const options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload)
+    };
+    UrlFetchApp.fetch(SEND_TOKEN_URL, options);
+  } catch (e) {
+    Logger.log("Error sending token: " + e.toString());
+    throw new Error("Failed to send token");
+  }
 
   return "Success";
 }

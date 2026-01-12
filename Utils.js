@@ -6,8 +6,11 @@ function getSheet_() {
   return SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
 }
 
-function sendDiscordAlert_(content) {
-  const payload = { content: content };
+function sendDiscordAlert_(content, embed) {
+  const payload = {};
+  if (content) payload.content = content;
+  if (embed) payload.embeds = [embed];
+
   const options = {
     method: 'post',
     contentType: 'application/json',
@@ -25,7 +28,7 @@ function sendDiscordAlert_(content) {
  * Parses the request event to extract parameters.
  * Prioritizes Query Parameters, then JSON Body.
  * @param {Object} e - The event object.
- * @return {Object} An object containing token and ip.
+ * @return {Object} An object containing token, ip, and url.
  */
 function parseRequestParams_(e) {
   // 1. Try Query Parameters first (if token exists)
@@ -33,7 +36,9 @@ function parseRequestParams_(e) {
   if (e?.parameter?.token) {
     return {
       token: e.parameter.token,
-      ip: e.parameter.ip || "Unknown IP"
+      role: e.parameter.role || null,
+      ip: e.parameter.ip || "Unknown IP",
+      url: e.parameter.url || e.parameter.referer || e.parameter.refer || "Unknown URL"
     };
   }
 
@@ -43,7 +48,9 @@ function parseRequestParams_(e) {
       const data = JSON.parse(e.postData.contents);
       return {
         token: data.token || "",
-        ip: data.ip || "Unknown IP"
+        role: data.role || null,
+        ip: data.ip || "Unknown IP",
+        url: data.url || data.referer || data.refer || "Unknown URL"
       };
     } catch (err) {
       // JSON parse failed, fall through to default
@@ -53,6 +60,8 @@ function parseRequestParams_(e) {
   // 3. Last resort: check params again (e.g. for IP only if token missing) or defaults
   return {
     token: e?.parameter?.token || "",
-    ip: e?.parameter?.ip || "Unknown IP"
+    role: e?.parameter?.role || null,
+    ip: e?.parameter?.ip || "Unknown IP",
+    url: e?.parameter?.url || e?.parameter?.referer || e?.parameter?.refer || "Unknown URL"
   };
 }
